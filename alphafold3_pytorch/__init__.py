@@ -34,13 +34,15 @@ from alphafold3_pytorch.alphafold3 import (
 )
 
 from alphafold3_pytorch.inputs import (
-    register_input_transform
+    register_input_transform,
+    AtomInput,
+    BatchedAtomInput
 )
 
 from alphafold3_pytorch.trainer import (
     Trainer,
     DataLoader,
-    AtomInput
+    collate_af3_inputs
 )
 
 from alphafold3_pytorch.configs import (

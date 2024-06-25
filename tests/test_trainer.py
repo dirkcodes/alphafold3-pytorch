@@ -14,6 +14,7 @@ from alphafold3_pytorch import (
     DataLoader,
     Trainer,
     ConductorConfig,
+    collate_af3_inputs,
     create_trainer_from_yaml,
     create_trainer_from_conductor_yaml,
     create_alphafold3_from_yaml
@@ -48,6 +49,7 @@ class MockAtomDataset(Dataset):
         molecule_atom_lens = torch.randint(1, self.atoms_per_window, (seq_len,))
         additional_molecule_feats = torch.randn(seq_len, 9)
         molecule_ids = torch.randint(0, 32, (seq_len,))
+        token_bonds = torch.randint(0, 2, (seq_len, seq_len)).bool()
 
         templates = torch.randn(2, seq_len, seq_len, 44)
         template_mask = torch.ones((2,)).bool()
@@ -73,6 +75,7 @@ class MockAtomDataset(Dataset):
             atom_inputs = atom_inputs,
             atompair_inputs = atompair_inputs,
             molecule_ids = molecule_ids,
+            token_bonds = token_bonds,
             molecule_atom_lens = molecule_atom_lens,
             additional_molecule_feats = additional_molecule_feats,
             templates = templates,
@@ -183,6 +186,38 @@ def test_trainer():
     # also allow for loading Alphafold3 directly from training ckpt
 
     alphafold3 = Alphafold3.init_and_load('./some/nested/folder2/training.pt')
+
+# test use of collation fn outside of trainer
+
+def test_collate_fn():
+    alphafold3 = Alphafold3(
+        dim_atom_inputs = 77,
+        dim_template_feats = 44,
+        num_dist_bins = 38,
+        confidence_head_kwargs = dict(
+            pairformer_depth = 1
+        ),
+        template_embedder_kwargs = dict(
+            pairformer_stack_depth = 1
+        ),
+        msa_module_kwargs = dict(
+            depth = 1
+        ),
+        pairformer_stack = dict(
+            depth = 1
+        ),
+        diffusion_module_kwargs = dict(
+            atom_encoder_depth = 1,
+            token_transformer_depth = 1,
+            atom_decoder_depth = 1,
+        ),
+    )
+
+    dataset = MockAtomDataset(1)
+
+    batched_atom_inputs = collate_af3_inputs([dataset[0]])
+
+    _, breakdown = alphafold3(**batched_atom_inputs, return_loss_breakdown = True)
 
 # test creating trainer + alphafold3 from config
 
