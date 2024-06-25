@@ -1462,7 +1462,6 @@ class DiffusionTransformer(Module):
         attn_num_memory_kv = False,
         trans_expansion_factor = 2,
         num_register_tokens = 0,
-        serial = False,
         use_linear_attn = False,
         linear_attn_kwargs = dict(
             heads = 8,
@@ -1540,8 +1539,6 @@ class DiffusionTransformer(Module):
 
         self.layers = layers
 
-        self.serial = serial
-
         self.has_registers = num_register_tokens > 0
         self.num_registers = num_register_tokens
 
@@ -1562,8 +1559,6 @@ class DiffusionTransformer(Module):
     ):
         w = self.attn_window_size
         has_windows = exists(w)
-
-        serial = self.serial
 
         # handle windowing
 
@@ -1603,18 +1598,12 @@ class DiffusionTransformer(Module):
                 windowed_mask = windowed_mask
             )
 
-            if serial:
-                noised_repr = attn_out + noised_repr
-
             ff_out = transition(
                 noised_repr,
                 cond = single_repr
             )
 
-            if not serial:
-                ff_out = ff_out + attn_out
-
-            noised_repr = noised_repr + ff_out
+            noised_repr = ff_out + attn_out
 
         # splice out registers
 
@@ -1680,7 +1669,6 @@ class DiffusionModule(Module):
         token_transformer_heads = 16,
         atom_decoder_depth = 3,
         atom_decoder_heads = 4,
-        serial = False,
         atom_encoder_kwargs: dict = dict(),
         atom_decoder_kwargs: dict = dict(),
         token_transformer_kwargs: dict = dict(),
@@ -1744,7 +1732,6 @@ class DiffusionModule(Module):
             attn_window_size = atoms_per_window,
             depth = atom_encoder_depth,
             heads = atom_encoder_heads,
-            serial = serial,
             use_linear_attn = use_linear_attn,
             linear_attn_kwargs = linear_attn_kwargs,
             **atom_encoder_kwargs
@@ -1768,7 +1755,6 @@ class DiffusionModule(Module):
             dim_pairwise = dim_pairwise,
             depth = token_transformer_depth,
             heads = token_transformer_heads,
-            serial = serial,
             **token_transformer_kwargs
         )
 
@@ -1785,7 +1771,6 @@ class DiffusionModule(Module):
             attn_window_size = atoms_per_window,
             depth = atom_decoder_depth,
             heads = atom_decoder_heads,
-            serial = serial,
             use_linear_attn = use_linear_attn,
             linear_attn_kwargs = linear_attn_kwargs,
             **atom_decoder_kwargs
@@ -2979,7 +2964,6 @@ class Alphafold3(Module):
             token_transformer_heads = 16,
             atom_decoder_depth = 3,
             atom_decoder_heads = 4,
-            serial = True # believe they have an error on Algorithm 23. lacking a residual - default to serial architecture until further news
         ),
         edm_kwargs: dict = dict(
             sigma_min = 0.002,
